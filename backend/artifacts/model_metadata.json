@@ -1,0 +1,21 @@
+{
+  "model_name": "LightGBM",
+  "model_type": "Single",
+  "created_date": "2026-02-05 16:43:39",
+  "performance": {
+    "test_roc_auc": 0.8675814456819304,
+    "test_pr_auc": 0.8907063412238978,
+    "test_f1": 0.8086835384258184,
+    "test_accuracy": 0.7864178330741317,
+    "cv_mean_roc_auc": 0.8665239373643159,
+    "cv_std_roc_auc": 0.003731973783074837
+  },
+  "optimal_threshold": 0.3500000000000001,
+  "default_threshold": 0.5,
+  "training_samples": 30860,
+  "test_samples": 7716,
+  "class_distribution": {
+    "train_return_rate": 0.5586843810758263,
+    "test_return_rate": 0.5587091757387247
+  }
+}
