@@ -196,6 +196,47 @@ The model uses 9 engineered features:
 | Test Accuracy | 78.6% |
 | Optimal Threshold | 0.35 |
 
+## ☁️ Deployment (Render)
+
+### Backend Deployment
+
+1. Create a new **Web Service** on Render
+2. Connect your GitHub repository
+3. Set the following:
+   - **Root Directory**: `backend`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: (uses Procfile automatically)
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SHAP_ENABLED` | `true` | Set to `false` to disable SHAP on memory-constrained deployments |
+
+### Memory Optimization (Free Tier)
+
+If you experience worker timeouts on Render's free tier:
+
+```bash
+# Option 1: Disable SHAP (saves ~200MB RAM)
+SHAP_ENABLED=false
+
+# Option 2: Already configured in Procfile
+# --timeout 120 (increased from 30s)
+# --workers 1 (single worker)
+# --preload (load model once)
+```
+
+### Frontend Deployment
+
+1. Create a new **Static Site** on Render
+2. Set:
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm install && npm run build`
+   - **Publish Directory**: `dist`
+3. Add environment variable:
+   - `VITE_API_URL`: Your backend URL (e.g., `https://your-backend.onrender.com`)
+
 ## 🛠️ Tech Stack
 
 **Backend:**

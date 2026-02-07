@@ -21,6 +21,9 @@ from explainer import (
     compute_shap_explanation,
 )
 
+# Environment configuration
+SHAP_ENABLED = os.environ.get("SHAP_ENABLED", "true").lower() == "true"
+
 
 # ============================================================================
 # APP CONFIGURATION
@@ -90,8 +93,13 @@ model = load_model()
 metadata = load_metadata()
 OPTIMAL_THRESHOLD = metadata.get("optimal_threshold", 0.35)
 
-# Initialize SHAP explainer
-shap_explainer = initialize_shap_explainer(model) if model else None
+# Initialize SHAP explainer (can be disabled via SHAP_ENABLED=false environment variable)
+if SHAP_ENABLED and model:
+    shap_explainer = initialize_shap_explainer(model)
+else:
+    shap_explainer = None
+    if not SHAP_ENABLED:
+        print("ℹ️  SHAP is disabled via SHAP_ENABLED=false environment variable")
 
 
 # ============================================================================
