@@ -372,6 +372,57 @@ function App() {
                 </div>
               )}
               
+              {/* SHAP Feature Contributions */}
+              {result.shap_explanation && (
+                <div className="shap-section">
+                  <h4>🔬 Feature Contributions (SHAP Analysis)</h4>
+                  <p className="shap-description">
+                    How each feature influenced this prediction from the base rate of{' '}
+                    <strong>{(result.shap_explanation.base_value * 100).toFixed(1)}%</strong>
+                  </p>
+                  
+                  <div className="shap-contributors">
+                    {result.shap_explanation.top_contributors.map((feature, index) => (
+                      <div 
+                        key={index} 
+                        className={`shap-feature ${feature.impact}`}
+                      >
+                        <div className="feature-header">
+                          <span className="feature-name">
+                            {feature.name.replace(/_/g, ' ')}
+                          </span>
+                          <span className={`contribution-value ${feature.shap_contribution > 0 ? 'positive' : 'negative'}`}>
+                            {feature.shap_contribution > 0 ? '+' : ''}
+                            {(feature.shap_contribution * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="contribution-bar-container">
+                          <div 
+                            className={`contribution-bar ${feature.shap_contribution > 0 ? 'risk-increase' : 'risk-decrease'}`}
+                            style={{ 
+                              width: `${Math.min(Math.abs(feature.shap_contribution) * 200, 100)}%` 
+                            }}
+                          />
+                        </div>
+                        <span className="feature-value">
+                          Value: {typeof feature.value === 'number' && !Number.isInteger(feature.value) 
+                            ? feature.value.toFixed(2) 
+                            : feature.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="shap-summary">
+                    <span>Total SHAP contribution: </span>
+                    <strong className={result.shap_explanation.sum_of_contributions > 0 ? 'positive' : 'negative'}>
+                      {result.shap_explanation.sum_of_contributions > 0 ? '+' : ''}
+                      {(result.shap_explanation.sum_of_contributions * 100).toFixed(1)}%
+                    </strong>
+                  </div>
+                </div>
+              )}
+              
               {/* Warnings */}
               {result.warnings?.length > 0 && (
                 <div className="warnings-list">

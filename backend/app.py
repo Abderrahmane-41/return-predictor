@@ -8,12 +8,18 @@ import os
 import json
 import joblib
 import numpy as np
+import shap
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from datetime import datetime
 
 from preprocessing import preprocess_input, validate_input, get_feature_names
-from explainer import get_risky_feature, get_risk_level, get_risk_summary
+from explainer import (
+    get_risky_feature,
+    get_risk_level,
+    get_risk_summary,
+    compute_shap_explanation,
+)
 
 
 # ============================================================================
@@ -57,10 +63,35 @@ def load_metadata():
         return {"optimal_threshold": 0.35, "model_name": "LightGBM"}
 
 
+def initialize_shap_explainer(model):
+    """
+    Initialize SHAP TreeExplainer for the loaded model.
+
+    TreeExplainer is exact and fast for tree-based models (LightGBM, XGBoost).
+    SHAP values represent feature contributions in model's native space.
+    """
+    try:
+        # TreeExplainer for tree-based models - optimal for LightGBM
+        # feature_perturbation='interventional' uses training data distribution
+        explainer = shap.TreeExplainer(model)
+        print("✅ SHAP TreeExplainer initialized successfully")
+        print(f"   Base value (expected value): {explainer.expected_value}")
+        return explainer
+    except Exception as e:
+        print(f"⚠️ SHAP initialization failed: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return None
+
+
 # Initialize model and metadata
 model = load_model()
 metadata = load_metadata()
 OPTIMAL_THRESHOLD = metadata.get("optimal_threshold", 0.35)
+
+# Initialize SHAP explainer
+shap_explainer = initialize_shap_explainer(model) if model else None
 
 
 # ============================================================================
@@ -98,6 +129,7 @@ def health_check():
             "model_loaded": model is not None,
             "model_name": metadata.get("model_name", "Unknown"),
             "threshold": OPTIMAL_THRESHOLD,
+            "shap_enabled": shap_explainer is not None,
         }
     )
 
@@ -188,6 +220,26 @@ def predict():
         risk_summary = get_risk_summary(data)
         debug_print("RISK FACTORS SUMMARY", risk_summary)
 
+        # Compute SHAP explanation if explainer is available
+        shap_explanation = None
+        if shap_explainer is not None:
+            shap_explanation = compute_shap_explanation(
+                shap_explainer, features, feature_names
+            )
+            if shap_explanation:
+                debug_print(
+                    "SHAP EXPLANATION",
+                    {
+                        "base_value": shap_explanation["base_value"],
+                        "top_contributors": shap_explanation["top_contributors"],
+                        "sum_of_contributions": shap_explanation[
+                            "sum_of_contributions"
+                        ],
+                    },
+                )
+        else:
+            print("ℹ️  SHAP explainer not available, skipping SHAP computation")
+
         # Build response
         response = {
             "probability": round(probability, 4),
@@ -195,6 +247,7 @@ def predict():
             "threshold_used": OPTIMAL_THRESHOLD,
             "risky_feature": risky_feature,
             "risk_factors": risk_summary,
+            "shap_explanation": shap_explanation,
             "warnings": warnings,
             "status": "success",
         }

@@ -5,6 +5,7 @@ CORRECTED with actual courier and category names from Excel data.
 """
 
 from typing import Dict, Any, Optional, List
+import numpy as np
 from preprocessing import (
     COURIER_RETURN_RATES,
     CATEGORY_RETURN_RATES,
@@ -218,3 +219,89 @@ def get_risk_summary(input_data: Dict[str, Any]) -> Dict[str, List[str]]:
         positive.append("Central region has reliable delivery infrastructure")
 
     return {"positive_factors": positive, "negative_factors": negative}
+
+
+def compute_shap_explanation(
+    explainer, features: np.ndarray, feature_names: List[str]
+) -> Optional[Dict[str, Any]]:
+    """
+    Compute real-time SHAP values for a single prediction.
+
+    Args:
+        explainer: SHAP TreeExplainer object
+        features: Preprocessed feature array of shape (1, n_features)
+        feature_names: List of feature names in order
+
+    Returns:
+        {
+            "base_value": 0.56,
+            "features": [
+                {
+                    "name": "Price_raw",
+                    "value": 5000.0,
+                    "shap_contribution": 0.12,
+                    "impact": "increases_risk"
+                },
+                ...
+            ],
+            "top_contributors": [...top 3 by absolute contribution...],
+            "sum_of_contributions": 0.15
+        }
+        or None if computation fails
+    """
+    try:
+        # Compute SHAP values
+        shap_values = explainer.shap_values(features)
+
+        # Handle binary classification - extract class 1 (return) values
+        # shap_values shape: (n_samples, n_features) for single output
+        # or list of 2 arrays for binary classification
+        if isinstance(shap_values, list):
+            # Binary classification: use class 1 (positive class = return)
+            shap_vals = shap_values[1][0]
+            base_value = float(explainer.expected_value[1])
+        else:
+            # Single output or already class 1
+            shap_vals = shap_values[0]
+            base_value = float(explainer.expected_value)
+
+        # Build feature contribution list
+        feature_contributions = []
+        for i, (name, shap_val) in enumerate(zip(feature_names, shap_vals)):
+            feature_value = float(features[0, i])
+            contribution = float(shap_val)
+
+            feature_contributions.append(
+                {
+                    "name": name,
+                    "value": feature_value,
+                    "shap_contribution": round(contribution, 4),
+                    "impact": (
+                        "increases_risk" if contribution > 0 else "decreases_risk"
+                    ),
+                }
+            )
+
+        # Sort by absolute contribution for top contributors
+        sorted_features = sorted(
+            feature_contributions,
+            key=lambda x: abs(x["shap_contribution"]),
+            reverse=True,
+        )
+
+        # Calculate sum of contributions
+        sum_contributions = sum(f["shap_contribution"] for f in feature_contributions)
+
+        return {
+            "base_value": round(base_value, 4),
+            "features": sorted_features,
+            "top_contributors": sorted_features[:3],
+            "sum_of_contributions": round(sum_contributions, 4),
+        }
+
+    except Exception as e:
+        print(f"⚠️ SHAP computation failed: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return None
